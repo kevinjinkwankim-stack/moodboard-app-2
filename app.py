@@ -136,6 +136,7 @@ def extract_frames(video_path, output_dir, base_name):
 
     cap.release()
     return frames
+    
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
