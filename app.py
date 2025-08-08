@@ -109,19 +109,29 @@ def download_selected():
 
 def extract_frames(video_path, output_dir, base_name):
     print("Initializing scene detection")
+    print("Video path exists:", os.path.exists(video_path))
+
     video_manager = VideoManager([video_path])
     scene_manager = SceneManager()
     scene_manager.add_detector(ContentDetector(threshold=30.0))
 
-    video_manager.set_downscale_factor()
-    video_manager.start()
+    try:
+        video_manager.set_downscale_factor()
+        video_manager.start()
 
-    scene_manager.detect_scenes(frame_source=video_manager)
-    scene_list = scene_manager.get_scene_list()
-    print(f"Detected {len(scene_list)} scenes.")
+        scene_manager.detect_scenes(frame_source=video_manager)
+        scene_list = scene_manager.get_scene_list()
+        print(f"Detected {len(scene_list)} scenes.")
+    except Exception as e:
+        print("Scene detection failed:", str(e))
+        return []
 
     frames = []
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("cv2 failed to open video.")
+        return []
+
     for idx, (start, _) in enumerate(scene_list):
         cap.set(cv2.CAP_PROP_POS_FRAMES, start.get_frames())
         ret, frame = cap.read()
@@ -130,9 +140,12 @@ def extract_frames(video_path, output_dir, base_name):
             frame_path = os.path.join(output_dir, frame_name)
             cv2.imwrite(frame_path, frame)
             frames.append(frame_name)
+        else:
+            print(f"Failed to grab frame at scene {idx + 1}")
 
     cap.release()
     return frames
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
