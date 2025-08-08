@@ -47,7 +47,7 @@ def upload():
 
         elif url:
             output_template = os.path.join(download_path, "video.%(ext)s")
-            yt_dlp_command = ["python3", "-m", "yt_dlp", url, "-o", output_template]
+            yt_dlp_command = ["yt-dlp", url, "-o", output_template]
 
             print("Running yt-dlp command:", " ".join(yt_dlp_command))
             result = subprocess.run(yt_dlp_command, capture_output=True, text=True)
