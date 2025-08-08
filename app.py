@@ -71,7 +71,7 @@ def upload():
         else:
             return jsonify({"error": "No video or URL provided"})
 
-        print("Extracting frames...")
+        print("Extracting frames from:", video_path)
         frames = extract_frames(video_path, project_folder, project_name)
         print("Frames extracted:", frames)
         return jsonify({"frames": [os.path.join('frames', project_name, f).replace('\\', '/') for f in frames], "project": project_name})
@@ -108,6 +108,7 @@ def download_selected():
     return send_file(zip_path, as_attachment=True)
 
 def extract_frames(video_path, output_dir, base_name):
+    print("Initializing scene detection")
     video_manager = VideoManager([video_path])
     scene_manager = SceneManager()
     scene_manager.add_detector(ContentDetector(threshold=30.0))
@@ -117,10 +118,9 @@ def extract_frames(video_path, output_dir, base_name):
 
     scene_manager.detect_scenes(frame_source=video_manager)
     scene_list = scene_manager.get_scene_list()
-
     print(f"Detected {len(scene_list)} scenes.")
-    frames = []
 
+    frames = []
     cap = cv2.VideoCapture(video_path)
     for idx, (start, _) in enumerate(scene_list):
         cap.set(cv2.CAP_PROP_POS_FRAMES, start.get_frames())
