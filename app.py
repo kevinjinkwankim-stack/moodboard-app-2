@@ -122,10 +122,9 @@ def extract_frames(video_path, output_dir, base_name):
 
     frames = []
     cap = cv2.VideoCapture(video_path)
-    for idx, scene in enumerate(scene_list):
-        start_timecode = scene[0]
+    
+    for idx, (start_timecode, _) in enumerate(scene_list):
         start_frame = start_timecode.get_frames()
-
         cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
         ret, frame = cap.read()
         if ret:
