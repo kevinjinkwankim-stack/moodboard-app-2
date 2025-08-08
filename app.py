@@ -47,7 +47,7 @@ def upload():
 
         elif url:
             output_template = os.path.join(download_path, "video.%(ext)s")
-            yt_dlp_command = ["yt-dlp", url, "-o", output_template]
+            yt_dlp_command = ["python3", "-m", "yt_dlp", url, "-o", output_template]
 
             print("Running yt-dlp command:", " ".join(yt_dlp_command))
             result = subprocess.run(yt_dlp_command, capture_output=True, text=True)
@@ -113,23 +113,19 @@ def extract_frames(video_path, output_dir, base_name):
     scene_manager = SceneManager()
     scene_manager.add_detector(ContentDetector(threshold=30.0))
 
-    try:
-        video_manager.set_downscale_factor()
-        video_manager.start()
+    video_manager.set_downscale_factor()
+    video_manager.start()
 
-        scene_manager.detect_scenes(frame_source=video_manager)
-        scene_list = scene_manager.get_scene_list()
-        print(f"Detected {len(scene_list)} scenes.")
-    except Exception as e:
-        print("Scene detection failed:", str(e))
-        return []
+    scene_manager.detect_scenes(frame_source=video_manager)
+    scene_list = scene_manager.get_scene_list()
+    print(f"Detected {len(scene_list)} scenes.")
 
     frames = []
     cap = cv2.VideoCapture(video_path)
-    print("Opened video:", cap.isOpened())
-
     for idx, scene in enumerate(scene_list):
-        start_frame = scene[0].get_frames()
+        start_timecode = scene[0]
+        start_frame = start_timecode.get_frames()
+
         cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
         ret, frame = cap.read()
         if ret:
@@ -137,13 +133,9 @@ def extract_frames(video_path, output_dir, base_name):
             frame_path = os.path.join(output_dir, frame_name)
             cv2.imwrite(frame_path, frame)
             frames.append(frame_name)
-        else:
-            print(f"Failed to grab frame at index {idx + 1}")
 
     cap.release()
-    print("Finished extracting", len(frames), "frames")
     return frames
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
