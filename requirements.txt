@@ -1,5 +1,5 @@
-Flask
-opencv-python
+Flask==2.3.3
+opencv-python-headless
 scenedetect
 yt-dlp
 services:
