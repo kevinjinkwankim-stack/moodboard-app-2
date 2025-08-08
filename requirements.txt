@@ -2,10 +2,3 @@ Flask==2.3.3
 opencv-python-headless
 scenedetect
 yt-dlp
-services:
-  - type: web
-    name: moodboard
-    env: python
-    buildCommand: |
-      apt-get update && apt-get install -y ffmpeg
-      pip install -r requirements.txt
