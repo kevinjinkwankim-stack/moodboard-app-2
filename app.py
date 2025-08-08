@@ -1,11 +1,8 @@
-
 from flask import Flask, request, jsonify, send_file, render_template
 import os
 import uuid
 import subprocess
 import shutil
-from scenedetect import VideoManager, SceneManager
-from scenedetect.detectors import ContentDetector
 import cv2
 import zipfile
 from werkzeug.utils import secure_filename
@@ -41,41 +38,29 @@ def upload():
 
     try:
         if video_file:
-            print("Received file:", video_file.filename)
-            print("Saving to:", video_path)
             video_file.save(video_path)
-            print("Video uploaded locally:", video_path)
-
         elif url:
             output_template = os.path.join(download_path, "video.%(ext)s")
-            yt_dlp_command = ["python3", "-m", "yt_dlp", url, "-o", output_template]
-
-            print("Running yt-dlp command:", " ".join(yt_dlp_command))
+            yt_dlp_command = ["yt-dlp", url, "-o", output_template]
             result = subprocess.run(yt_dlp_command, capture_output=True, text=True)
-            print("yt-dlp stdout:", result.stdout)
-            print("yt-dlp stderr:", result.stderr)
-
             if result.returncode != 0:
                 return jsonify({"error": "Failed to download URL", "details": result.stderr})
-
-            downloaded_files = os.listdir(download_path)
-            print("Downloaded files:", downloaded_files)
-
-            for file in downloaded_files:
+            for file in os.listdir(download_path):
                 if file.startswith("video."):
                     original_file = os.path.join(download_path, file)
                     os.rename(original_file, video_path)
                     break
             else:
-                return jsonify({"error": "Download failed: No compatible video file found.", "files": downloaded_files})
-
+                return jsonify({"error": "Download failed: No compatible video file found."})
         else:
             return jsonify({"error": "No video or URL provided"})
 
-        print("Extracting frames from:", video_path)
+        print(">>> Starting frame extraction")
         frames = extract_frames(video_path, project_folder, project_name)
-        print("Frames extracted:", frames)
-        return jsonify({"frames": [os.path.join('frames', project_name, f).replace('\\', '/') for f in frames], "project": project_name})
+        return jsonify({
+            "frames": [os.path.join('frames', project_name, f).replace('\\', '/') for f in frames],
+            "project": project_name
+        })
 
     except Exception as e:
         print("Exception occurred:", str(e))
@@ -109,34 +94,33 @@ def download_selected():
     return send_file(zip_path, as_attachment=True)
 
 def extract_frames(video_path, output_dir, base_name):
-    print("Initializing scene detection")
-    video_manager = VideoManager([video_path])
-    scene_manager = SceneManager()
-    scene_manager.add_detector(ContentDetector(threshold=30.0))
+    print(">>> Running extract_frames")
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise Exception("Failed to open video file")
 
-    video_manager.set_downscale_factor()
-    video_manager.start()
-
-    scene_manager.detect_scenes(frame_source=video_manager)
-    scene_list = scene_manager.get_scene_list()
-    print(f"Detected {len(scene_list)} scenes.")
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    interval = int(cap.get(cv2.CAP_PROP_FPS)) * 5  # one frame every 5 seconds
 
     frames = []
-    cap = cv2.VideoCapture(video_path)
-    
-    for idx, (start_timecode, _) in enumerate(scene_list):
-        start_frame = start_timecode.get_frames()
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+    current_frame = 0
+    idx = 0
+
+    while current_frame < frame_count:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
         ret, frame = cap.read()
-        if ret:
-            frame_name = f"{base_name}_{idx + 1}.jpg"
-            frame_path = os.path.join(output_dir, frame_name)
-            cv2.imwrite(frame_path, frame)
-            frames.append(frame_name)
+        if not ret:
+            break
+        frame_name = f"{base_name}_{idx + 1}.jpg"
+        frame_path = os.path.join(output_dir, frame_name)
+        cv2.imwrite(frame_path, frame)
+        frames.append(frame_name)
+        current_frame += interval
+        idx += 1
 
     cap.release()
+    print(f"Extracted {len(frames)} frames")
     return frames
-    
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
