@@ -2,24 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Moodboard Generator</title>
+  <title>🎬 Moodboard Generator</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
-    h1 { color: #333; font-size: 2em; }
-    .frame-box { display: inline-block; margin: 10px; text-align: center; }
-    img { border-radius: 6px; max-width: 200px; display: block; margin-bottom: 5px; }
-    button { margin-top: 20px; padding: 10px 15px; cursor: pointer; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f4f4f4;
+      color: #333;
+    }
+    h1 {
+      color: #222;
+      font-size: 2.2em;
+      margin-bottom: 20px;
+    }
+    form {
+      margin-bottom: 30px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input[type="text"], input[type="file"] {
+      padding: 8px;
+      margin: 8px 0;
+      width: 100%;
+      max-width: 400px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      margin-right: 10px;
+      border: none;
+      background-color: #2b7cff;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1a5fd6;
+    }
+    #frameContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .frame-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .frame-box img {
+      max-width: 200px;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
   <h1>🎬 Moodboard Generator</h1>
 
   <form id="uploadForm" enctype="multipart/form-data">
-    <label for="name">Project Name:</label>
-    <input type="text" id="name" name="name" required><br><br>
+    <label for="name">Project Name:</label><br>
+    <input type="text" id="name" name="name" required><br>
 
-    <label for="video">Upload Video (Max 500MB):</label>
-    <input type="file" id="video" name="video" accept="video/*" required><br><br>
+    <label for="video">Upload Video (Max 500MB):</label><br>
+    <input type="file" id="video" name="video" accept="video/*" required><br>
 
     <button type="submit">Upload and Extract</button>
   </form>
@@ -38,15 +88,28 @@
     form.onsubmit = async (e) => {
       e.preventDefault();
       const formData = new FormData(form);
-      const res = await fetch('/upload', { method: 'POST', body: formData });
-      const data = await res.json();
 
+      const res = await fetch('/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
       frameContainer.innerHTML = '';
       currentProject = data.project;
+
+      if (!data.frames || !data.frames.length) {
+        alert("No frames extracted. Please check your video.");
+        return;
+      }
+
       data.frames.forEach(f => {
         const div = document.createElement('div');
         div.className = 'frame-box';
-        div.innerHTML = `<input type="checkbox" class="frame-checkbox" value="${f}"><img src="/static/${f}">`;
+        div.innerHTML = `
+          <input type="checkbox" class="frame-checkbox" value="${f}">
+          <img src="/static/${f}" alt="Frame">
+        `;
         frameContainer.appendChild(div);
       });
 
@@ -54,7 +117,7 @@
       downloadAllBtn.onclick = () => {
         window.location.href = `/download_zip/${currentProject}`;
       };
-    }
+    };
 
     function downloadSelected() {
       const checked = document.querySelectorAll('.frame-checkbox:checked');
@@ -64,7 +127,9 @@
 
       fetch('/download_selected', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ files, zip_name: zipName })
       })
       .then(res => res.blob())
