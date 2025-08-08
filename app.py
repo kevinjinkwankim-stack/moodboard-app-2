@@ -109,8 +109,6 @@ def download_selected():
 
 def extract_frames(video_path, output_dir, base_name):
     print("Initializing scene detection")
-    print("Video path exists:", os.path.exists(video_path))
-
     video_manager = VideoManager([video_path])
     scene_manager = SceneManager()
     scene_manager.add_detector(ContentDetector(threshold=30.0))
@@ -128,12 +126,11 @@ def extract_frames(video_path, output_dir, base_name):
 
     frames = []
     cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        print("cv2 failed to open video.")
-        return []
+    print("Opened video:", cap.isOpened())
 
-    for idx, (start, _) in enumerate(scene_list):
-        cap.set(cv2.CAP_PROP_POS_FRAMES, start.get_frames())
+    for idx, scene in enumerate(scene_list):
+        start_frame = scene[0].get_frames()
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
         ret, frame = cap.read()
         if ret:
             frame_name = f"{base_name}_{idx + 1}.jpg"
@@ -141,9 +138,10 @@ def extract_frames(video_path, output_dir, base_name):
             cv2.imwrite(frame_path, frame)
             frames.append(frame_name)
         else:
-            print(f"Failed to grab frame at scene {idx + 1}")
+            print(f"Failed to grab frame at index {idx + 1}")
 
     cap.release()
+    print("Finished extracting", len(frames), "frames")
     return frames
 
 
