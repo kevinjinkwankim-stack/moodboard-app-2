@@ -1,148 +1,92 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>🎬 Moodboard Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moodboard Frame Extractor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background: #f4f4f4;
-      color: #333;
-    }
-    h1 {
-      color: #222;
-      font-size: 2.2em;
-      margin-bottom: 20px;
-    }
-    form {
-      margin-bottom: 30px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    input[type="text"], input[type="file"] {
-      padding: 8px;
-      margin: 8px 0;
-      width: 100%;
-      max-width: 400px;
-    }
-    button {
-      padding: 10px 20px;
-      margin-top: 10px;
-      margin-right: 10px;
-      border: none;
-      background-color: #2b7cff;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #1a5fd6;
-    }
-    #frameContainer {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .frame-box {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .frame-box img {
-      max-width: 200px;
-      border-radius: 6px;
+    body { background: #f4f4f4; padding-top: 40px; }
+    .frame-img { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 20px; }
+    .frame-card { padding: 10px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .progress { height: 20px; margin-top: 10px; }
+    .frame-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+    .frame-grid .frame-card { flex: 1 1 calc(20% - 20px); max-width: calc(20% - 20px); }
+    @media (max-width: 768px) {
+      .frame-grid .frame-card { flex: 1 1 calc(50% - 20px); max-width: calc(50% - 20px); }
     }
   </style>
 </head>
 <body>
-  <h1>🎬 Moodboard Generator</h1>
+  <div class="container">
+    <h1 class="text-center mb-4">🎬 Moodboard Frame Extractor</h1>
 
-  <form id="uploadForm" enctype="multipart/form-data">
-    <label for="name">Project Name:</label><br>
-    <input type="text" id="name" name="name" required><br>
+    <form id="uploadForm" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="form-label">Project Name</label>
+        <input type="text" class="form-control" name="name" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Upload Video File</label>
+        <input type="file" class="form-control" name="video" accept="video/*">
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Generate Moodboard</button>
+    </form>
 
-    <label for="video">Upload Video (Max 500MB):</label><br>
-    <input type="file" id="video" name="video" accept="video/*" required><br>
+    <div id="loading" class="text-center mt-4" style="display: none;">
+      <div class="spinner-border" role="status"></div>
+      <p>Processing...</p>
+    </div>
 
-    <button type="submit">Upload and Extract</button>
-  </form>
-
-  <div id="frameContainer"></div>
-
-  <button onclick="downloadSelected()">Download Selected</button>
-  <button id="downloadAllBtn" style="display:none">Download All</button>
+    <div id="result" class="mt-5" style="display: none;">
+      <h3>Moodboard Frames</h3>
+      <div class="mb-3">
+        <button class="btn btn-success" id="downloadAll">Download All Frames (ZIP)</button>
+      </div>
+      <div class="frame-grid" id="frameGrid"></div>
+    </div>
+  </div>
 
   <script>
     const form = document.getElementById('uploadForm');
-    const frameContainer = document.getElementById('frameContainer');
-    const downloadAllBtn = document.getElementById('downloadAllBtn');
-    let currentProject = '';
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const frameGrid = document.getElementById('frameGrid');
+    const downloadAll = document.getElementById('downloadAll');
 
     form.onsubmit = async (e) => {
       e.preventDefault();
+      loading.style.display = 'block';
+      result.style.display = 'none';
+      frameGrid.innerHTML = '';
+
       const formData = new FormData(form);
+      const response = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await response.json();
 
-      const res = await fetch('/upload', {
-        method: 'POST',
-        body: formData
-      });
+      loading.style.display = 'none';
 
-      const data = await res.json();
-      frameContainer.innerHTML = '';
-      currentProject = data.project;
-
-      if (!data.frames || !data.frames.length) {
-        alert("No frames extracted. Please check your video.");
+      if (data.error) {
+        alert("Error: " + data.error);
         return;
       }
 
-      data.frames.forEach(f => {
-        const div = document.createElement('div');
-        div.className = 'frame-box';
-        div.innerHTML = `
-          <input type="checkbox" class="frame-checkbox" value="${f}">
-          <img src="/static/${f}" alt="Frame">
-        `;
-        frameContainer.appendChild(div);
+      result.style.display = 'block';
+      const frames = data.frames;
+      const project = data.project;
+
+      frames.forEach(f => {
+        const card = document.createElement('div');
+        card.className = 'frame-card';
+        card.innerHTML = `<img src="/static/${f}" class="frame-img"><a href="/static/${f}" download class="btn btn-sm btn-outline-primary w-100">Download</a>`;
+        frameGrid.appendChild(card);
       });
 
-      downloadAllBtn.style.display = 'inline-block';
-      downloadAllBtn.onclick = () => {
-        window.location.href = `/download_zip/${currentProject}`;
+      downloadAll.onclick = () => {
+        window.location.href = `/download_zip/${project}`;
       };
     };
-
-    function downloadSelected() {
-      const checked = document.querySelectorAll('.frame-checkbox:checked');
-      const files = Array.from(checked).map(cb => cb.value);
-      if (!files.length) return alert("Please select at least one frame.");
-      const zipName = prompt("Enter zip filename", "selected_frames") || "selected_frames";
-
-      fetch('/download_selected', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ files, zip_name: zipName })
-      })
-      .then(res => res.blob())
-      .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = zipName + '.zip';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      });
-    }
   </script>
 </body>
 </html>
